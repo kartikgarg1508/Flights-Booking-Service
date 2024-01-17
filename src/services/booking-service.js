@@ -93,7 +93,55 @@ async function makePayment(data) {
   }
 }
 
+async function cancelExpiredBooking(bookingId) {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const bookingDetails = await bookingrepository.get(bookingId);
+    if (bookingDetails.status != CANCELLED) {
+      await axios.patch(
+        `${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${bookingDetails.flightId}/seats`,
+        {
+          noOfSeats: bookingDetails.noOfSeats,
+          decrease: 0,
+        }
+      );
+
+      await bookingrepository.updateBookingStaus(
+        bookingId,
+        {
+          status: CANCELLED,
+        },
+        transaction
+      );
+
+      await transaction.commit();
+    }
+  } catch (error) {
+    await transaction.rollback();
+    throw new AppError(
+      "Something went wrong while cancelling the booking",
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
+async function cancelExpiredBookings() {
+  try {
+    const time = new Date(Date.now() - 1000 * 300);
+    const response = await bookingrepository.getAllExpired(time);
+    for (const element of response) {
+      await cancelExpiredBooking(element.id);
+    }
+  } catch (error) {
+    throw new AppError(
+      "Cannot cancel expired bookings",
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
 module.exports = {
   createBooking,
   makePayment,
+  cancelExpiredBookings,
 };
