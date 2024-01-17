@@ -67,7 +67,7 @@ async function makePayment(data) {
     }
 
     // payment successfull assumed
-    await bookingrepository.updateBookingStaus(
+    await bookingrepository.updateBookingStatus(
       data.bookingId,
       {
         status: BOOKED,
@@ -106,7 +106,7 @@ async function cancelExpiredBooking(bookingId) {
         }
       );
 
-      await bookingrepository.updateBookingStaus(
+      await bookingrepository.updateBookingStatus(
         bookingId,
         {
           status: CANCELLED,

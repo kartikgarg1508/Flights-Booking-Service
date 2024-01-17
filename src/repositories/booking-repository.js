@@ -16,7 +16,7 @@ class BookingRepository extends CrudRepository {
     return response;
   }
 
-  async updateBookingStaus(id, data, transaction) {
+  async updateBookingStatus(id, data, transaction) {
     // data : { col1 : value, ...}
 
     const response = await Booking.update(data, {
