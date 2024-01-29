@@ -1,3 +1,3 @@
 module.exports = {
-  DateTimeCompare: require("./datetime-helper"),
+  DateTime: require("./datetime-helper"),
 };

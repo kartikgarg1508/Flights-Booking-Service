@@ -3,8 +3,10 @@ const db = require("../models");
 const { BookingRepository } = require("../repositories");
 const { AppError } = require("../utils/errors");
 const { StatusCodes } = require("http-status-codes");
-const { ServerConfig } = require("../config");
+const { ServerConfig, QueueConfig } = require("../config");
 const { Enums } = require("../utils/common");
+const { getUserEmail } = require("../repositories/raw-queries");
+const { DateTime } = require("../utils/helper");
 
 const { BOOKED, CANCELLED } = Enums.BOOKING_STATUS;
 const bookingrepository = new BookingRepository();
@@ -75,6 +77,7 @@ async function makePayment(data) {
       transaction
     );
     await transaction.commit();
+    await sendNotification(data.userId, bookingDetails.flightId);
   } catch (error) {
     await transaction.rollback();
     if (error.statusCode === StatusCodes.BAD_REQUEST)
@@ -137,6 +140,30 @@ async function cancelExpiredBookings() {
       "Cannot cancel expired bookings",
       StatusCodes.INTERNAL_SERVER_ERROR
     );
+  }
+}
+
+async function sendNotification(userId, flightId) {
+  try {
+    const result = await db.sequelize.query(getUserEmail(userId));
+    const flight = await axios.get(
+      `${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${flightId}`
+    );
+
+    const flightDetails = flight.data.data;
+    const departureTime = DateTime.convertDateTimeToISTandFormat(
+      flightDetails.departureTime
+    );
+    const arrivalTime = DateTime.convertDateTimeToISTandFormat(
+      flightDetails.arrivalTime
+    );
+    QueueConfig.publishToQueue({
+      recipientEmail: result[0][0].email,
+      subject: "Flight Booking Successfully Done",
+      text: `Your trip request is confirmed. Please find the details below. \n \n Flight Information: \n \n Airlines: ${flightDetails.airlines} ${flightDetails.flightNumber} \n \n Sector: ${flightDetails.departureAirportCode} - ${flightDetails.arrivalAirportCode} \n \n Departure Time: ${departureTime} \n \n Arrival Time: ${arrivalTime}`,
+    });
+  } catch (error) {
+    console.log("Notification could not be send");
   }
 }
 
