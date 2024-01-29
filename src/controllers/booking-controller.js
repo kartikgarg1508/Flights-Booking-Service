@@ -29,7 +29,7 @@ async function makePayment(req, res) {
       throw new AppError("Idempotency Key Missing", StatusCodes.BAD_REQUEST);
     }
 
-    if (inMemDB.idempotencyKey) {
+    if (idempotencyKey in inMemDB) {
       throw new AppError(
         "Cannot Retry a Successfull Payment",
         StatusCodes.BAD_REQUEST
@@ -41,7 +41,7 @@ async function makePayment(req, res) {
       totalCost: req.body.totalCost,
     };
 
-    inMemDB.idempotencyKey = idempotencyKey;
+    inMemDB[idempotencyKey] = idempotencyKey;
 
     await BookingService.makePayment(data);
     return res.status(StatusCodes.CREATED).json(SuccessResponse);
